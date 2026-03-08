@@ -33,9 +33,10 @@ TARGET_URLS = [
     # ─────────────────────────────────────────────────────────────
     # 🏛️ ADDITIONAL SOURCES (Uncomment to Enable)
     # ─────────────────────────────────────────────────────────────
-    # "https://www.vba.vic.gov.au/news-and-publications/news",
-    # "https://www.planning.vic.gov.au/news-and-media/media-releases/rss",
-    # "https://www.abcb.gov.au/news",
+    "https://www.vba.vic.gov.au/news-and-publications/news",
+    "https://www.planning.vic.gov.au/news",
+    "https://www.planning.vic.gov.au/news-and-media/media-releases/rss",
+    "https://www.abcb.gov.au/news",
 ]
 
 MAX_ITEMS = 10
