@@ -117,7 +117,7 @@ def call_ai(text):
     
     # ✅ LEAN PROMPT - No filler, no "What to Do/Next Steps"
     prompt = f"""Victoria building news. Reforms, compliance, safety only.
-Rules: 1) 🔗 link EVERY item 2) Source labels [BPC],[CONSUMER],[ENGAGE],[ABCB] 3) Group by source 4) Bullets+emojis 5) Max 450 words
+Rules: 1) 🔗 link EVERY item 2) Source labels [BPC],[ENGAGE],[ABCB] 3) Group by source 4) Bullets+emojis 5) Max 450 words
 News:
 {text[:7500]}
 Format:
