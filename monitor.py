@@ -11,7 +11,7 @@ CF_ACCOUNT_ID = os.getenv("CLOUDFLARE_ACCOUNT_ID")
 
 # === TARGET: Victorian Building Authority News ===
 # Update this URL if you find a better source or RSS feed
-TARGET_URL = "https://www.vba.vic.gov.au/news-and-publications/news"
+TARGET_URL = "https://www.bpc.vic.gov.au/news"
 HEADERS = {'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X)'}
 
 def send_telegram(message):
