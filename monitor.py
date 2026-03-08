@@ -1,5 +1,6 @@
 import os, requests, time, json, warnings, re
 from bs4 import BeautifulSoup, XMLParsedAsHTMLWarning
+from datetime import datetime, timedelta
 
 warnings.filterwarnings("ignore", category=XMLParsedAsHTMLWarning)
 
@@ -9,13 +10,15 @@ CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
 CF_TOKEN = os.getenv("CLOUDFLARE_API_TOKEN")
 CF_ACCOUNT_ID = os.getenv("CLOUDFLARE_ACCOUNT_ID")
 
+# ✅ UPDATED: Consumer RSS removed. ABCB points to /news (not initiatives)
 TARGET_URLS = [
     "https://www.bpc.vic.gov.au/news",
     "https://engage.vic.gov.au/security-buying-building-a-home",
-    "https://www.abcb.gov.au/news",
+    "https://www.abcb.gov.au/news",  # ✅ Only news, no resources/initiatives
 ]
 
-MAX_ITEMS = 12  # ✅ Increased from 8 (saved space by removing fluff)
+MAX_ITEMS = 15  # ✅ Increased (more space now that RSS is gone)
+MAX_AGE_DAYS = 30  # ✅ Only show news from last 30 days
 
 def log(msg): print(f"📝 [LOG] {msg}")
 
@@ -37,6 +40,23 @@ def clean_url(href, base):
     if href.startswith('//'): return f"https:{href}"
     return f"{base}{href}" if href.startswith('/') else f"{base}/{href}"
 
+def parse_date(date_str):
+    """Parse common date formats to datetime"""
+    if not date_str: return None
+    formats = [
+        "%d %B %Y", "%d %b %Y", "%Y-%m-%d", 
+        "%d/%m/%Y", "%B %d, %Y", "%b %d, %Y"
+    ]
+    for fmt in formats:
+        try:
+            return datetime.strptime(date_str.strip(), fmt)
+        except: pass
+    return None
+
+def is_recent(pub_date, max_days=MAX_AGE_DAYS):
+    if not pub_date: return True  # Include if no date found
+    return (datetime.now() - pub_date).days <= max_days
+
 def scrape_with_links(url):
     try:
         headers = {"User-Agent": "Mozilla/5.0"}
@@ -44,21 +64,38 @@ def scrape_with_links(url):
         r.raise_for_status()
         soup = BeautifulSoup(r.content, "html.parser")
         items, base = [], "/".join(url.split("/")[:3])
-        is_rss = "rss.aspx" in url.lower() or ".rss" in url.lower()
         
-        if is_rss:  # RSS feeds
-            src = url.split('/')[2].replace('cms9.','').replace('.vic.gov.au','').upper()
-            for item in soup.find_all('item'):
-                t, l = item.find('title'), item.find('link')
-                if t and l:
-                    txt, lnk = t.get_text().strip(), l.get_text().strip().split()[0]
-                    lnk = lnk if lnk.startswith('http') else clean_url(lnk, base)
-                    if 20 < len(txt) < 300 and lnk:
-                        items.append(f"📰 [{src}] {txt}\n🔗 {lnk}")
-                        if len(items) >= MAX_ITEMS: break
-            log(f"✅ RSS {src}: {len(items)}")
+        # ✅ ABCB NEWS (with date filtering)
+        if "abcb.gov.au" in url:
+            log(f"🔧 ABCB News scraper...")
+            raw_items = []
+            # ABCB news list usually has <article> or <div class="news-item">
+            for art in soup.find_all('article') or soup.find_all('div', class_=lambda c: c and 'news' in str(c).lower() if c else False):
+                tt = art.find(['h2','h3','h4'])
+                lk = art.find('a', href=True)
+                # Try to find date (often in <time> or <span class="date">)
+                dt = art.find(['time', 'span'], class_=lambda c: c and 'date' in str(c).lower() if c else False)
+                
+                if tt and lk:
+                    title = tt.get_text().strip()
+                    href = lk['href']
+                    full_url = clean_url(href, base)
+                    pub_date = parse_date(dt.get_text().strip() if dt else None)
+                    
+                    if 30 < len(title) < 300 and is_recent(pub_date):
+                        raw_items.append({'title': title, 'link': full_url, 'date': pub_date})
+            
+            # Sort by date (newest first)
+            raw_items.sort(key=lambda x: x['date'] if x['date'] else datetime.now(), reverse=True)
+            
+            for it in raw_items[:MAX_ITEMS]:
+                items.append(f"📰 [ABCB] {it['title']}\n🔗 {it['link']}")
+            
+            log(f"✅ ABCB: {len(items)} (filtered by date)")
         
-        elif "engage.vic.gov.au" in url:  # Engage Victoria
+        # ✅ ENGAGE VICTORIA
+        elif "engage.vic.gov.au" in url:
+            log(f"🔧 Engage scraper...")
             for card in soup.find_all(['div','section'], class_=lambda c: c and any(x in str(c).lower() for x in ['card','project','consultation'])):
                 tt = card.find(['h2','h3','h4','h5'], class_=lambda c: c and any(x in str(c).lower() for x in ['title','heading']))
                 lk = card.find('a', href=True)
@@ -74,37 +111,32 @@ def scrape_with_links(url):
                 if tt: items.append(f"📰 [ENGAGE] {tt.get_text().strip()}\n🔗 {url}")
             log(f"✅ Engage: {len(items)}")
         
-        elif "abcb.gov.au" in url:  # ABCB
-            src = "ABCB"
-            for ni in soup.find_all('div', class_='news-item') or soup.find_all('article'):
-                tt, lk = ni.find(['h3','h4','h2']), ni.find('a', href=True)
-                if tt and lk:
-                    txt, href = tt.get_text().strip(), lk['href']
-                    full = clean_url(href, base)
-                    if 30 < len(txt) < 300:
-                        items.append(f"📰 [{src}] {txt}\n🔗 {full}")
-                        if len(items) >= MAX_ITEMS: break
-            if len(items) < MAX_ITEMS:
-                for lk in soup.find_all('a', href=True):
-                    txt, href = lk.get_text().strip(), lk['href']
-                    if any(k in txt.lower() for k in ['construction','code','regulation','handbook','guidance','prefabricated']):
-                        full = clean_url(href, base)
-                        if 30 < len(txt) < 300:
-                            items.append(f"📰 [{src}] {txt}\n🔗 {full}")
-                            if len(items) >= MAX_ITEMS: break
-            log(f"✅ ABCB: {len(items)}")
-        
-        else:  # Standard HTML (BPC)
-            src = url.split('/')[2].replace('www.','').upper()
-            for art in soup.find_all('article') or soup.find_all('div', class_=lambda c: c and 'news' in str(c).lower()):
-                lk, tt = art.find('a', href=True), art.find(['h2','h3','h4'], class_=lambda c: c and any(x in str(c).lower() for x in ['title','heading']))
+        # ✅ BPC NEWS (Standard HTML)
+        else:
+            src = "BPC"
+            log(f"🔧 BPC scraper...")
+            raw_items = []
+            for art in soup.find_all('article') or soup.find_all('div', class_=lambda c: c and 'news' in str(c).lower() if c else False):
+                lk, tt = art.find('a', href=True), art.find(['h2','h3','h4'], class_=lambda c: c and any(x in str(c).lower() for x in ['title','heading']) if c else False)
+                # Try to find date
+                dt = art.find(['time', 'span'], class_=lambda c: c and 'date' in str(c).lower() if c else False)
+                
                 if lk and tt:
-                    txt, href = tt.get_text().strip(), lk['href']
+                    txt = tt.get_text().strip()
+                    href = lk['href']
                     full = clean_url(href, base)
-                    if 30 < len(txt) < 300:
-                        items.append(f"📰 [{src}] {txt}\n🔗 {full}")
-                        if len(items) >= MAX_ITEMS: break
-            log(f"✅ HTML {src}: {len(items)}")
+                    pub_date = parse_date(dt.get_text().strip() if dt else None)
+                    
+                    if 30 < len(txt) < 300 and is_recent(pub_date):
+                        raw_items.append({'title': txt, 'link': full, 'date': pub_date})
+            
+            # Sort by date
+            raw_items.sort(key=lambda x: x['date'] if x['date'] else datetime.now(), reverse=True)
+            
+            for it in raw_items[:MAX_ITEMS]:
+                items.append(f"📰 [{src}] {it['title']}\n🔗 {it['link']}")
+            
+            log(f"✅ BPC: {len(items)} (filtered by date)")
         
         return f"🌐 {url}\n✅ {len(items)}\n\n" + "\n\n".join(items[:MAX_ITEMS]) if items else f"🌐 {url}\n⚠️ None"
     except Exception as e:
@@ -115,23 +147,21 @@ def call_ai(text):
     url = f"https://api.cloudflare.com/client/v4/accounts/{CF_ACCOUNT_ID}/ai/run/@cf/meta/llama-3-8b-instruct"
     headers = {"Authorization": f"Bearer {CF_TOKEN}", "Content-Type": "application/json"}
     
-    # ✅ LEAN PROMPT - No filler, no "What to Do/Next Steps"
-    prompt = f"""Victoria building news. Reforms, compliance, safety only.
-Rules: 1) 🔗 link EVERY item 2) Source labels [BPC],[ENGAGE],[ABCB] 3) Group by source 4) Bullets+emojis 5) Max 450 words
+    # ✅ LEAN PROMPT - No filler, no Consumer Affairs
+    prompt = f"""Victoria building news (last 30 days). Reforms, compliance, safety only.
+Rules: 1) 🔗 link EVERY item 2) Source labels [BPC],[ENGAGE],[ABCB] 3) Group by source 4) Bullets+emojis 5) Max 500 words
 News:
-{text[:7500]}
+{text[:8000]}
 Format:
 🏗️ <b>BPC</b>
 • 📋 [Summary] 🔗 [URL]
-📰 <b>Consumer Affairs</b>
-• 📋 [NEWSALERTS] Summary 🔗 [URL]
 📢 <b>Engage</b>
 • 📋 Summary 🔗 [URL]
 🏛️ <b>ABCB</b>
 • 📋 Summary 🔗 [URL]"""
     
     try:
-        r = requests.post(url, headers=headers, json={"messages": [{"role": "user", "content": prompt}], "max_tokens": 1100}, timeout=90)
+        r = requests.post(url, headers=headers, json={"messages": [{"role": "user", "content": prompt}], "max_tokens": 1200}, timeout=90)
         r.raise_for_status()
         return r.json()['result']['response'].strip()
     except Exception as e:
@@ -141,7 +171,7 @@ Format:
 def run_scheduled():
     log("📰 Running...")
     content = "\n\n".join([scrape_with_links(u) for u in TARGET_URLS])
-    summary = call_ai(content) or content[:700]
+    summary = call_ai(content) or content[:800]
     msg = f"🏗️ Victoria Building News\n📅 {time.strftime('%d %b %Y')}\n\n{summary}"
     send_telegram(msg)
     log("✅ Sent")
@@ -160,7 +190,7 @@ def check_commands():
             elif cmd == "/today":
                 send_telegram("🔄", reply_id=msg["message_id"])
                 content = "\n\n".join([scrape_with_links(u) for u in TARGET_URLS])
-                return f"🏗️ Victoria Building News\n📅 {time.strftime('%d %b')}\n\n{call_ai(content) or content[:600]}"
+                return f"🏗️ Victoria Building News\n📅 {time.strftime('%d %b')}\n\n{call_ai(content) or content[:700]}"
         return None
     except: return None
 
