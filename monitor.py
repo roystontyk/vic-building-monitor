@@ -12,12 +12,6 @@ CF_ACCOUNT_ID = os.getenv("CLOUDFLARE_ACCOUNT_ID")
 TARGET_URLS = [
     "https://www.bpc.vic.gov.au/news",
     "https://engage.vic.gov.au/security-buying-building-a-home",
-    "https://cms9.consumer.vic.gov.au/RSS.aspx?RssType=newsalerts",
-    "https://cms9.consumer.vic.gov.au/RSS.aspx?RssType=mediareleases",
-    "https://cms9.consumer.vic.gov.au/RSS.aspx?RssType=courtactions",
-    "https://cms9.consumer.vic.gov.au/RSS.aspx?RssType=enforceableundertakings",
-    "https://cms9.consumer.vic.gov.au/RSS.aspx?RssType=legislationupdates",
-    "https://cms9.consumer.vic.gov.au/RSS.aspx?RssType=publicwarnings",
     "https://www.abcb.gov.au/news",
 ]
 
