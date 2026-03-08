@@ -2,9 +2,9 @@ name: Vic Building Monitor
 
 on:
   schedule:
-    - cron: '0 20 * * *'      # Daily digest at 8 PM UTC
-    - cron: '*/15 * * * *'    # Poll for commands every 15 minutes
-  workflow_dispatch:          # Manual trigger button
+    - cron: '0 20 * * 0'   # Monday 7 AM AEDT (Sunday 8 PM UTC)
+    - cron: '0 20 * * 2'   # Wednesday 7 AM AEDT (Tuesday 8 PM UTC)
+  workflow_dispatch:        # Manual trigger via GitHub button
 
 jobs:
   monitor:
