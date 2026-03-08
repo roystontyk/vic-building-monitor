@@ -10,13 +10,13 @@ CF_ACCOUNT_ID = os.getenv("CLOUDFLARE_ACCOUNT_ID")
 # ✅ ADD OR REMOVE WEBSITES HERE (Easy List!)
 TARGET_URLS = [
     "https://www.bpc.vic.gov.au/news",
-    "https://engage.vic.gov.au/"
-    "https://cms9.consumer.vic.gov.au/RSS.aspx?RssType=newsalerts"
-    "https://cms9.consumer.vic.gov.au/RSS.aspx?RssType=mediareleases"
-    "https://cms9.consumer.vic.gov.au/RSS.aspx?RssType=courtactions"
-    "https://cms9.consumer.vic.gov.au/RSS.aspx?RssType=enforceableundertakings"
-    "https://cms9.consumer.vic.gov.au/RSS.aspx?RssType=legislationupdates"
-    "https://cms9.consumer.vic.gov.au/RSS.aspx?RssType=publicwarnings"
+    "https://engage.vic.gov.au/",
+    "https://cms9.consumer.vic.gov.au/RSS.aspx?RssType=newsalerts",
+    "https://cms9.consumer.vic.gov.au/RSS.aspx?RssType=mediareleases",
+    "https://cms9.consumer.vic.gov.au/RSS.aspx?RssType=courtactions",
+    "https://cms9.consumer.vic.gov.au/RSS.aspx?RssType=enforceableundertakings",
+    "https://cms9.consumer.vic.gov.au/RSS.aspx?RssType=legislationupdates",
+    "https://cms9.consumer.vic.gov.au/RSS.aspx?RssType=publicwarnings",
     # "https://www.vba.vic.gov.au/news-and-publications/news",  # Example: Uncomment to add
     # "https://www.planning.vic.gov.au/news",                   # Example: Add another
 ]
