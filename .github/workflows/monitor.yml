@@ -2,9 +2,9 @@ name: Vic Building Monitor
 
 on:
   schedule:
-    - cron: '0 20 * * *'   # Daily digest at 8 PM UTC
-    - cron: '*/10 * * * *' # Check for commands every 10 mins
-  workflow_dispatch:       # Manual trigger from GitHub UI
+    - cron: '0 20 * * *'      # Daily digest at 8 PM UTC
+    - cron: '*/15 * * * *'    # Poll for commands every 15 minutes
+  workflow_dispatch:          # Manual trigger button
 
 jobs:
   monitor:
@@ -12,7 +12,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
-        with: { python-version: '3.11' }
+        with:
+          python-version: '3.11'
       - run: pip install requests beautifulsoup4
       - run: python monitor.py
         env:
