@@ -1,6 +1,10 @@
 name: Vic Building Monitor
 
 on:
+# 🔴 NEW: This allows the iPhone/Orchestrator to trigger this repo
+  repository_dispatch:
+    types: [trigger-all-repos]
+    
   schedule:
     - cron: '0 20 * * 0'   # Monday 7 AM AEDT (Sunday 8 PM UTC)
     - cron: '0 20 * * 2'   # Wednesday 7 AM AEDT (Tuesday 8 PM UTC)
