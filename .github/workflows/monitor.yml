@@ -5,10 +5,12 @@ on:
   repository_dispatch:
     types: [trigger-all-repos]
     
+  # Standard daily schedule (e.g., 7:30 AM Sydney/Brisbane time)
   schedule:
-    - cron: '0 20 * * 0'   # Monday 7 AM AEDT (Sunday 8 PM UTC)
-    - cron: '0 20 * * 2'   # Wednesday 7 AM AEDT (Tuesday 8 PM UTC)
-  workflow_dispatch:        # Manual trigger via GitHub button
+    - cron: '30 21 * * *' 
+    
+  # Manual trigger button for your iPhone Shortcut
+  workflow_dispatch:
 
 jobs:
   monitor:
