@@ -1,15 +1,15 @@
 name: Vic Building Monitor
 
 on:
-# 🔴 NEW: This allows the iPhone/Orchestrator to trigger this repo
+  # Allows your iPhone/Orchestrator to trigger this via API
   repository_dispatch:
     types: [trigger-all-repos]
     
-  # Standard daily schedule (e.g., 7:30 AM Sydney/Brisbane time)
+  # Runs at 8:30 AM Melbourne Time (AEDT)
   schedule:
     - cron: '30 21 * * *' 
     
-  # Manual trigger button for your iPhone Shortcut
+  # Manual "Play" button in GitHub Actions tab
   workflow_dispatch:
 
 jobs:
@@ -17,13 +17,23 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-      - run: pip install requests beautifulsoup4
-      - run: python monitor.py
+          
+      - name: Install dependencies
+        run: |
+          pip install requests beautifulsoup4 htmldate certifi
+          
+      - name: Run Script
+        run: python monitor.py
         env:
+          # Ensure these match the Secret names in your GitHub Settings
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          # Optional: Helps some python libs recognize the local timezone
+          TZ: 'Australia/Melbourne'
