@@ -1,5 +1,6 @@
 import os, requests, time, json, warnings
 from bs4 import BeautifulSoup, XMLParsedAsHTMLWarning
+from datetime import datetime, timedelta, timezone # Added for timezone control
 
 warnings.filterwarnings("ignore", category=XMLParsedAsHTMLWarning)
 
@@ -8,6 +9,9 @@ TELEGRAM_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
 CF_TOKEN = os.getenv("CLOUDFLARE_API_TOKEN")
 CF_ACCOUNT_ID = os.getenv("CLOUDFLARE_ACCOUNT_ID")
+
+# --- MELBOURNE TIME CONFIG ---
+MELB_TZ = timezone(timedelta(hours=11))
 
 # ✅ ALL 3 SOURCES - ABCB NEWS ONLY
 TARGET_URLS = [
@@ -76,28 +80,24 @@ def scrape_with_links(url):
                 if tt: items.append(f"📰 [ENGAGE] {tt.get_text().strip()}\n🔗 {url}")
             log(f"✅ Engage: {len(items)}")
         
-        # ✅ ABCB - NEWS ONLY (filter out /initiatives/, /resources/, etc.)
+        # ✅ ABCB - NEWS ONLY
         elif "abcb.gov.au" in url:
             src = "ABCB"
-            # Strategy 1: Look for <article> or news containers with /news/ in link
             for article in soup.find_all('article') or soup.find_all('div', class_=lambda c: c and 'news' in str(c).lower()):
                 tt = article.find(['h3','h4','h2'])
                 lk = article.find('a', href=True)
                 if tt and lk:
                     txt = tt.get_text().strip()
                     href = lk['href']
-                    # ✅ CRITICAL: Only accept URLs with /news/ in path
                     if '/news/' in href or '/news?' in href:
                         full = clean_url(href, base)
                         if 30 < len(txt) < 300:
                             items.append(f"📰 [{src}] {txt}\n🔗 {full}")
                             if len(items) >= MAX_ITEMS: break
             
-            # Strategy 2: Fallback - scan all links for /news/ pattern
             if len(items) < MAX_ITEMS:
                 for lk in soup.find_all('a', href=True):
                     href = lk['href']
-                    # ✅ Only grab /news/ URLs
                     if '/news/' in href or '/news?' in href:
                         txt = lk.get_text().strip()
                         full = clean_url(href, base)
@@ -116,7 +116,6 @@ def call_ai(text):
     url = f"https://api.cloudflare.com/client/v4/accounts/{CF_ACCOUNT_ID}/ai/run/@cf/meta/llama-3-8b-instruct"
     headers = {"Authorization": f"Bearer {CF_TOKEN}", "Content-Type": "application/json"}
     
-    # ✅ 3-SOURCE PROMPT - ABCB NEWS ONLY
     prompt = f"""Victoria building news. Reforms, compliance, safety.
 Rules: 1) 🔗 link EVERY item 2) Labels [BPC],[ENGAGE],[ABCB] 3) Group by source 4) Bullets+emojis 5) Max 500 words
 News:
@@ -141,7 +140,11 @@ def run_scheduled():
     log("📰 Running...")
     content = "\n\n".join([scrape_with_links(u) for u in TARGET_URLS])
     summary = call_ai(content) or content[:700]
-    msg = f"🏗️ Victoria Building News\n📅 {time.strftime('%d %b %Y')}\n\n{summary}"
+    
+    # AMENDED: Use Melbourne Time
+    melb_now = datetime.now(MELB_TZ).strftime('%d %b %Y')
+    msg = f"🏗️ Victoria Building News\n📅 {melb_now}\n\n{summary}"
+    
     send_telegram(msg)
     log("✅ Sent")
 
@@ -159,7 +162,12 @@ def check_commands():
             elif cmd == "/today":
                 send_telegram("🔄", reply_id=msg["message_id"])
                 content = "\n\n".join([scrape_with_links(u) for u in TARGET_URLS])
-                return f"🏗️ Victoria Building News\n📅 {time.strftime('%d %b')}\n\n{call_ai(content) or content[:600]}"
+                
+                # AMENDED: Use Melbourne Time
+                melb_day = datetime.now(MELB_TZ).strftime('%d %b')
+                res_msg = f"🏗️ Victoria Building News\n📅 {melb_day}\n\n{call_ai(content) or content[:600]}"
+                send_telegram(res_msg)
+                return True
         return None
     except: return None
 
